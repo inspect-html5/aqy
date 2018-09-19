@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8">
+		<meta content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" name="viewport">
+		<title>检查情况-正常</title>
+	</head>
+	<link rel="stylesheet" href="../css/base.css">
+	<link rel="stylesheet" href="../css/bootstrap.css">
+	<link rel="stylesheet" href="../css/task_css/wpjc.css">
+	<link rel="stylesheet" href="../css/weui.min.css">
+
+	<body>
+		<div id="app">
+			<div class="title">
+				<p>
+					识别码：{{deviceDetails.qrCode}}
+					<span @click="jumpHistory">
+						历史检查<img src="../imgs/task_img/right.png" alt="">
+                    </span>
+				</p>
+			</div>
+			<div class="mhq clearfix">
+				<div class="box">
+					<img src="../imgs/task_img/mhq.png" alt="">
+				</div>
+				<div class="box_1">
+					<p>
+						{{deviceDetails.materialName}}
+						<span>检查规范</span>
+					</p>
+					<p>位置：{{deviceDetails.location}} </p>
+					<p>生产日期：{{deviceDetails.producedDate}}</p>
+					<p>过期日期：{{deviceDetails.expireDate}}</p>
+				</div>
+			</div>
+			<div class="jcqk">
+				<ul>
+					<li v-for="(item,index) in deviceDetails.checkSpecificItems">
+						<p v-text="item.name"></p>
+						<span @click="checkBtns(0,index)" v-bind:class="!inspectStatusArr[index]?'checked':''">正常</span>
+						<span @click="checkBtns(1,index)" v-bind:class="inspectStatusArr[index]==1?'checked':''">异常</span>
+					</li>
+				</ul>
+			</div>
+			<p v-if="inspectStatus" class="shangbao" @click="selectCheifs" >
+			    <img src="../imgs/task_img/sanj.png" alt="">
+			    上报上级
+			    <span>
+			         <label v-text="cheifsName"></label>
+			         <img src="../imgs/task_img/right.png" alt="">
+			    </span>
+			</p>
+			<!--情况描述-->
+			<div class="miaosu">
+				<p>
+					情况描述
+				</p>
+				<textarea v-model="descr" name="备注" id="" cols="10" rows="5" placeholder="请输入检查情况描述..."></textarea>
+			</div>
+			<!--添加照片-->
+			<div class="pic">
+				<p>
+					现场照片/视频
+				</p>
+				<div class="flex flex_around flex_wrap_box">
+					<img @click="deleteImg(index)" class="upload_img" v-for="(item,index) in imgList" v-bind:src="item" />
+					<div class="tianjia"> 
+						<div style="position: relative">
+							<img src="../imgs/index_img/jiah.png" />
+						    <input @change="upload" id="imgFile"  class="weui-uploader__input" type="file" accept="image/*" capture="camera" multiple="" />
+						</div>
+					</div>
+				</div>
+			</div>
+			<button @click="submitInfo">提交</button>
+		</div>
+	</body>
+	<script type="text/javascript" src="../js/jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="../js/vue.min.js"></script>
+	<script type="text/javascript" src="../js/axios.min.js"></script>
+	<script type="text/javascript" src="../js/fetchData.js"></script>
+	<script type="text/javascript" src="../js/common.js"></script>
+	<script type="text/javascript" src="../js/weui.min.js"></script>
+	<script>
+		let data = {
+			data: {},
+			url: '/app/user/info'
+		}
+
+		var myvue = new Vue({
+			el: '#app',
+			data: {
+				deviceDetails: JSON.parse(decodeURIComponent(decodeURI(getQueryString("deviceDetails")))),
+			    checkSpecificItmes: {},
+			    inspectStatusArr: [],
+			    inspectStatus: false,
+			    descr: "",
+			    imgList: [],
+			    cheifsName: "请选择",
+			    cheifsId: "",
+			},
+			created() {
+				let that = this;
+//				that.getCheckSpecificItmes();
+			},
+			methods: {
+				getCheckSpecificItmes: function() {
+					let that = this;
+					let data = {
+						data: {
+							id: "",
+						},
+						url: '/app/check/specific/query?materialTypeId=1' , //+ that.deviceDetails.checkSpecificId
+						method: 'get'
+					}
+
+					fetchData(data).then(res => {
+						if(res.data.code == 200) {
+							that.checkSpecificItmes = res.data.list;
+						}
+						console.log(res);
+					});
+				},
+				checkBtns: function(status,id) {
+					var that = this
+					Vue.set(that.inspectStatusArr, id, status);
+					if(that.inspectStatusArr.indexOf(1)>=0) {
+						that.inspectStatus = true;
+					} else {
+						that.inspectStatus = false;
+					}
+				},
+				submitInfo: function() {
+					let that = this;
+					
+					let data = {
+						data: {
+							materialId:that.deviceDetails.id,
+							regionId: that.deviceDetails.regionId,
+							inspectStatus: that.inspectStatusArr.indexOf(1)>=0?1:0,
+							chiefIds: that.cheifsId,
+							photos: that.imgList.toString(),
+							descr: that.descr,
+						},
+						url: '/app/material/check', 
+						method: 'POST'
+					}
+
+					fetchData(data).then(res => {
+						if(res.data.code == 200) {
+							console.log(res);
+							window.location.href = "../index/index.html"
+						}
+						console.log(res);
+					});
+				},
+				selectCheifs:function() {
+					var that = this
+					var weData = that.deviceDetails.cheifs.map(o=>{return{value:o.id, label:o.name}});
+					weui.picker(
+					   weData,{
+						   className: 'custom-classname',
+						   container: 'body',
+						   onChange: function (result) {
+					   },
+					   onConfirm: function (result) {
+					   	   that.cheifsName = result[0].label;
+					   	   that.cheifsId = result[0].value;
+					   },
+					   id: 'cheifs'
+					});
+				},
+				upload:function() {
+					var that = this
+					var loading = weui.loading('loading', {
+					    className: 'custom-classname'
+					});
+					if(that.imgList.length>=9) {
+						weui.toast('最多选择9张图片', 1500);  
+					}
+					
+                    var imgFile = document.getElementById("imgFile");
+                    var fileObj = imgFile.files[0];
+                    var imgObj = new FormData();
+
+                    imgObj.append("file", fileObj);
+
+	                $.ajax({
+	                   url: "http://47.92.7.119:8080/app/upload",
+	                   data: imgObj,
+	                   type: "post",
+	                   dataType: "json",
+	                   cache: false,//上传文件无需缓存
+	                   processData: false,//用于对data参数进行序列化处理 这里必须false
+	                   contentType: false, //必须
+	                   success: function (res) {
+	                   		console.log(res)
+	                   		loading.hide(function() {});
+		                   	if(res.code == 200) {
+		                   		that.imgList.push(res.url);
+		                   	}
+	                   },
+	                })
+				},
+				deleteImg:function(id) {
+					var that = this
+					weui.dialog({
+					    title: '温馨提示',
+					    content: '您确定删除当前图片吗？',
+					    className: 'custom-classname',
+					    buttons: [{
+					        label: '取消',
+					        type: 'default',
+					        onClick: function () {}
+					    }, {
+					        label: '确定',
+					        type: 'primary',
+					        onClick: function () {
+								that.imgList.splice(id,1);
+							}
+					    }]
+					});
+				},
+				jumpHistory: function() {
+					window.location.href = "jcjl.html?materialId=" + this.deviceDetails.qrCode;
+				}
+			}
+		});
+	</script>
+
+</html>
