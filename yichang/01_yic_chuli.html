@@ -86,7 +86,6 @@
                 reads.readAsDataURL(f);
                 reads.onload = function (file) {
                     console.log(file);
-                    //console.log(file.currentTarget.result);
                     that.photoUrl = file.currentTarget.result;
                     that.isviewPhoto = true;
                 };
